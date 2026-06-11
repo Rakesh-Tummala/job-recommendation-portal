@@ -11,6 +11,33 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { User as UserType, Job, Skill, Application } from './types';
 
+// ── Skill Categorization ──────────────────────────────────────────────────────
+
+const CATEGORY_MAP: Record<string, string[]> = {
+  'Languages': ['javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'ruby', 'go', 'rust', 'php', 'swift', 'kotlin', 'sql', 'html', 'css'],
+  'Frameworks': ['react', 'angular', 'vue', 'next.js', 'node.js', 'express', 'django', 'flask', 'spring', 'laravel', 'ruby on rails', 'tailwind', 'bootstrap', 'pytorch', 'tensorflow'],
+  'Databases': ['mysql', 'postgresql', 'mongodb', 'redis', 'sqlite', 'oracle', 'sql server', 'dynamodb', 'cassandra', 'firebase'],
+  'Cloud & DevOps': ['aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins', 'github actions', 'terraform', 'linux', 'git', 'ci/cd', 'nginx', 'vercel'],
+};
+
+const categorizeSkill = (skill: string) => {
+  const s = skill.toLowerCase();
+  for (const [cat, items] of Object.entries(CATEGORY_MAP)) {
+    if (items.some(item => s.includes(item) || item === s)) return cat;
+  }
+  return 'Tools';
+};
+
+const groupSkills = (skills: string[] = []) => {
+  const grouped: Record<string, string[]> = {};
+  skills.forEach(s => {
+    const cat = categorizeSkill(s);
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(s);
+  });
+  return grouped;
+};
+
 // ── Resume Upload + AI Skill Extraction ──────────────────────────────────────
 
 const ResumeUploadCard = ({ token, onSkillsExtracted }: { token: string, onSkillsExtracted: (skills: any[], name: string) => void }) => {
@@ -42,11 +69,11 @@ const ResumeUploadCard = ({ token, onSkillsExtracted }: { token: string, onSkill
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl p-6 border border-indigo-100">
+      className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl p-6 border border-brand-accent/20">
       <div className="flex items-center gap-2 mb-4">
-        <FileText className="w-5 h-5 text-indigo-600" />
-        <h3 className="text-sm font-bold text-indigo-900">AI Resume Skill Extractor</h3>
-        <span className="px-2 py-0.5 bg-indigo-600 text-white text-[9px] font-black rounded-full uppercase tracking-wider">New</span>
+        <FileText className="w-5 h-5 text-brand-accent" />
+        <h3 className="text-sm font-bold text-brand-text">AI Resume Skill Extractor</h3>
+        <span className="px-2 py-0.5 bg-brand-accent text-white text-[9px] font-black rounded-full uppercase tracking-wider">New</span>
       </div>
 
       {!result ? (
@@ -54,19 +81,19 @@ const ResumeUploadCard = ({ token, onSkillsExtracted }: { token: string, onSkill
           onClick={() => fileRef.current?.click()}
           onDragOver={e => e.preventDefault()}
           onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); }}
-          className="border-2 border-dashed border-indigo-200 rounded-2xl p-6 text-center cursor-pointer hover:border-indigo-400 hover:bg-white/50 transition-all group"
+          className="border-2 border-dashed border-brand-accent/30 rounded-2xl p-6 text-center cursor-pointer hover:border-indigo-400 hover:bg-brand-card/50 transition-all group"
         >
           <input ref={fileRef} type="file" accept=".pdf,.txt" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} />
           {uploading ? (
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-              <p className="text-sm text-indigo-600 font-medium">Gemini is reading your resume...</p>
+              <p className="text-sm text-brand-accent font-medium">AI is reading your resume...</p>
             </div>
           ) : (
             <>
               <Upload className="w-8 h-8 text-indigo-300 mx-auto mb-2 group-hover:text-indigo-500 transition-colors" />
-              <p className="text-sm font-bold text-indigo-700">Drop your resume here</p>
+              <p className="text-sm font-bold text-brand-accent">Drop your resume here</p>
               <p className="text-xs text-indigo-400 mt-1">PDF or TXT • Max 10MB</p>
             </>
           )}
@@ -74,19 +101,26 @@ const ResumeUploadCard = ({ token, onSkillsExtracted }: { token: string, onSkill
       ) : (
         <div className="space-y-3">
           {result.name && (
-            <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-indigo-100">
+            <div className="flex items-center gap-2 p-3 bg-brand-card rounded-xl border border-brand-accent/20">
               <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span className="text-sm font-bold text-gray-900">{result.name}</span>
+              <span className="text-sm font-bold text-brand-text">{result.name}</span>
             </div>
           )}
           {result.summary && (
-            <p className="text-xs text-gray-600 italic px-1">{result.summary}</p>
+            <p className="text-xs text-brand-text-sec italic px-1">{result.summary}</p>
           )}
           <div>
-            <p className="text-xs font-bold text-indigo-700 mb-2">Extracted Skills ({result.extractedSkills?.length || 0})</p>
-            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-              {result.extractedSkills?.map((s: string, i: number) => (
-                <span key={i} className="px-2 py-1 bg-white text-indigo-700 text-[11px] font-bold rounded-lg border border-indigo-100">{s}</span>
+            <p className="text-xs font-bold text-brand-text-sec mb-3">Extracted Skills ({result.extractedSkills?.length || 0})</p>
+            <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+              {Object.entries(groupSkills(result.extractedSkills)).map(([cat, skills]) => (
+                <div key={cat} className="space-y-1.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-text-muted">{cat}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {skills.map((s, i) => (
+                      <span key={i} className="px-2 py-1 bg-brand-bg-sec text-brand-text text-[11px] font-semibold rounded-md border border-brand-border hover:border-brand-accent/50 transition-colors shadow-sm">{s}</span>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -96,20 +130,20 @@ const ResumeUploadCard = ({ token, onSkillsExtracted }: { token: string, onSkill
           </div>
           {result.recommendations?.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-bold text-indigo-700">Recommended Jobs ({result.recommendations.length})</p>
+              <p className="text-xs font-bold text-brand-accent">Recommended Jobs ({result.recommendations.length})</p>
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {result.recommendations.slice(0, 5).map((job: any) => (
-                  <div key={job.job_id} className="bg-white rounded-xl border border-indigo-100 p-3">
+                  <div key={job.job_id} className="bg-brand-card rounded-xl border border-brand-accent/20 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-black text-gray-900">{job.title}</p>
-                        <p className="text-xs text-gray-500 font-medium">{job.company} • {job.location}</p>
+                        <p className="text-sm font-black text-brand-text">{job.title}</p>
+                        <p className="text-xs text-brand-text-muted font-medium">{job.company} • {job.location}</p>
                       </div>
                       <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-black shrink-0">
                         {job.matchScore}% match
                       </span>
                     </div>
-                    {job.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{job.description}</p>}
+                    {job.description && <p className="text-xs text-brand-text-muted mt-2 line-clamp-2">{job.description}</p>}
                   </div>
                 ))}
               </div>
@@ -118,12 +152,12 @@ const ResumeUploadCard = ({ token, onSkillsExtracted }: { token: string, onSkill
           <div className="flex gap-2 pt-2">
             <button
               onClick={() => onSkillsExtracted(result.matchedSkills, result.name)}
-              className="flex-1 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all"
+              className="flex-1 py-2 bg-brand-accent text-white rounded-xl font-bold text-xs hover:bg-brand-accent-hover transition-all"
             >
               Refresh Profile Skills
             </button>
-            <button onClick={() => setResult(null)} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
-              <X className="w-4 h-4 text-gray-400" />
+            <button onClick={() => setResult(null)} className="p-2 bg-brand-card border border-brand-border rounded-xl hover:bg-brand-bg transition-all">
+              <X className="w-4 h-4 text-brand-text-muted" />
             </button>
           </div>
         </div>
@@ -167,11 +201,11 @@ const ResumeScoreCard = ({ token }: { token: string }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+      className="bg-brand-card rounded-3xl p-6 border border-brand-border/50 shadow-lg shadow-black/20">
       <div className="flex items-center gap-2 mb-4">
         <Award className="w-5 h-5 text-amber-500" />
-        <h3 className="text-sm font-bold text-gray-900">AI Resume Score</h3>
-        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded-full uppercase tracking-wider">Gemini</span>
+        <h3 className="text-sm font-bold text-brand-text">AI Resume Score</h3>
+        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded-full uppercase tracking-wider">AI</span>
       </div>
 
       {!score ? (
@@ -181,7 +215,7 @@ const ResumeScoreCard = ({ token }: { token: string }) => {
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-amber-200 rounded-2xl hover:border-amber-400 hover:bg-amber-50 transition-all disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-amber-500/30 rounded-2xl hover:border-amber-500/50 hover:bg-amber-500/10 transition-all disabled:opacity-60"
           >
             {uploading ? <Loader2 className="w-5 h-5 text-amber-500 animate-spin" /> : <Upload className="w-5 h-5 text-amber-400" />}
             <span className="text-sm font-bold text-amber-700">{uploading ? 'Scoring your resume...' : 'Upload Resume to Score'}</span>
@@ -194,7 +228,7 @@ const ResumeScoreCard = ({ token }: { token: string }) => {
           <div className="flex items-center gap-5">
             <div className="relative w-24 h-24 shrink-0">
               <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#f3f4f6" strokeWidth="10" />
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#334155" strokeWidth="10" />
                 <circle cx="50" cy="50" r="40" fill="none"
                   stroke={scoreRingColor(score.score)}
                   strokeWidth="10"
@@ -205,17 +239,17 @@ const ResumeScoreCard = ({ token }: { token: string }) => {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className={`text-2xl font-black ${scoreColor(score.score)}`}>{score.score}</span>
-                <span className="text-[9px] text-gray-400 font-bold">/ 100</span>
+                <span className="text-[9px] text-brand-text-muted font-bold">/ 100</span>
               </div>
             </div>
             <div className="flex-1 space-y-1.5">
               {Object.entries(score.breakdown || {}).map(([key, val]: any) => (
                 <div key={key} className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500 w-20 capitalize">{key}</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                  <span className="text-[10px] text-brand-text-muted w-20 capitalize">{key}</span>
+                  <div className="flex-1 bg-brand-bg-sec rounded-full h-1.5">
                     <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${(val / 25) * 100}%` }} />
                   </div>
-                  <span className="text-[10px] font-bold text-gray-600 w-8 text-right">{val}</span>
+                  <span className="text-[10px] font-bold text-brand-text-sec w-8 text-right">{val}</span>
                 </div>
               ))}
             </div>
@@ -227,7 +261,7 @@ const ResumeScoreCard = ({ token }: { token: string }) => {
               <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1.5">✓ Strengths</p>
               <ul className="space-y-1">
                 {score.strengths.map((s: string, i: number) => (
-                  <li key={i} className="text-[11px] text-gray-700 flex items-start gap-1.5">
+                  <li key={i} className="text-[11px] text-brand-text-sec flex items-start gap-1.5">
                     <span className="text-emerald-500 mt-0.5">•</span>{s}
                   </li>
                 ))}
@@ -241,7 +275,7 @@ const ResumeScoreCard = ({ token }: { token: string }) => {
               <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1.5">↑ Improve</p>
               <ul className="space-y-1">
                 {score.improvements.map((s: string, i: number) => (
-                  <li key={i} className="text-[11px] text-gray-700 flex items-start gap-1.5">
+                  <li key={i} className="text-[11px] text-brand-text-sec flex items-start gap-1.5">
                     <span className="text-amber-500 mt-0.5">•</span>{s}
                   </li>
                 ))}
@@ -249,7 +283,7 @@ const ResumeScoreCard = ({ token }: { token: string }) => {
             </div>
           )}
 
-          <button onClick={() => setScore(null)} className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={() => setScore(null)} className="text-[11px] text-brand-text-muted hover:text-brand-text-sec transition-colors">
             Score another resume →
           </button>
         </div>
@@ -272,9 +306,9 @@ const AnalyticsPanel = ({ token }: { token: string }) => {
   }, [token]);
 
   if (loading) return (
-    <div className="bg-white rounded-3xl p-6 border border-gray-100 flex items-center gap-3">
+    <div className="bg-brand-card rounded-3xl p-6 border border-brand-border/50 flex items-center gap-3">
       <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
-      <span className="text-sm text-gray-500">Loading analytics...</span>
+      <span className="text-sm text-brand-text-muted">Loading analytics...</span>
     </div>
   );
 
@@ -282,24 +316,24 @@ const AnalyticsPanel = ({ token }: { token: string }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+      className="bg-brand-card rounded-3xl p-6 border border-brand-border/50 shadow-lg shadow-black/20">
       <div className="flex items-center gap-2 mb-5">
-        <BarChart2 className="w-5 h-5 text-indigo-600" />
-        <h3 className="text-sm font-bold text-gray-900">Your Analytics</h3>
+        <BarChart2 className="w-5 h-5 text-brand-accent" />
+        <h3 className="text-sm font-bold text-brand-text">Your Analytics</h3>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         {[
-          { label: 'Applications', value: analytics.applicationsCount, icon: <Briefcase className="w-4 h-4" />, color: 'bg-indigo-50 text-indigo-600' },
+          { label: 'Applications', value: analytics.applicationsCount, icon: <Briefcase className="w-4 h-4" />, color: 'bg-brand-accent/10 text-brand-accent' },
           { label: 'Avg Match Rate', value: `${analytics.avgMatchRate}%`, icon: <Target className="w-4 h-4" />, color: 'bg-emerald-50 text-emerald-600' },
           { label: 'Skills Added', value: analytics.totalSkills, icon: <Brain className="w-4 h-4" />, color: 'bg-purple-50 text-purple-600' },
           { label: 'Profile', value: `${analytics.profileCompleteness}%`, icon: <Users className="w-4 h-4" />, color: 'bg-amber-50 text-amber-600' },
         ].map(({ label, value, icon, color }) => (
-          <div key={label} className="bg-gray-50 rounded-2xl p-3">
+          <div key={label} className="bg-brand-bg rounded-2xl p-3">
             <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${color} mb-2`}>{icon}</div>
-            <p className="text-lg font-black text-gray-900">{value}</p>
-            <p className="text-[10px] text-gray-500 font-medium">{label}</p>
+            <p className="text-lg font-black text-brand-text">{value}</p>
+            <p className="text-[10px] text-brand-text-muted font-medium">{label}</p>
           </div>
         ))}
       </div>
@@ -307,10 +341,10 @@ const AnalyticsPanel = ({ token }: { token: string }) => {
       {/* Profile Completeness Bar */}
       <div className="mb-5">
         <div className="flex justify-between mb-1.5">
-          <span className="text-xs font-bold text-gray-700">Profile Completeness</span>
-          <span className="text-xs font-black text-indigo-600">{analytics.profileCompleteness}%</span>
+          <span className="text-xs font-bold text-brand-text-sec">Profile Completeness</span>
+          <span className="text-xs font-black text-brand-accent">{analytics.profileCompleteness}%</span>
         </div>
-        <div className="bg-gray-100 rounded-full h-2">
+        <div className="bg-brand-bg-sec rounded-full h-2">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${analytics.profileCompleteness}%` }}
@@ -323,15 +357,15 @@ const AnalyticsPanel = ({ token }: { token: string }) => {
       {/* Skill Demand */}
       {analytics.skillDemand?.length > 0 && (
         <div>
-          <p className="text-xs font-bold text-gray-700 mb-3">Skill Demand in Portal</p>
+          <p className="text-xs font-bold text-brand-text-sec mb-3">Skill Demand in Portal</p>
           <div className="space-y-2">
             {analytics.skillDemand.map(({ skill, demand }: any) => (
               <div key={skill} className="flex items-center gap-2">
-                <span className="text-[11px] text-gray-600 w-24 truncate">{skill}</span>
-                <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                <span className="text-[11px] text-brand-text-sec w-24 truncate">{skill}</span>
+                <div className="flex-1 bg-brand-bg-sec rounded-full h-1.5">
                   <div className="bg-indigo-400 h-1.5 rounded-full" style={{ width: `${Math.min(100, demand * 33)}%` }} />
                 </div>
-                <span className="text-[10px] text-gray-400 w-8 text-right">{demand} job{demand !== 1 ? 's' : ''}</span>
+                <span className="text-[10px] text-brand-text-muted w-8 text-right">{demand} job{demand !== 1 ? 's' : ''}</span>
               </div>
             ))}
           </div>
@@ -370,10 +404,10 @@ const JobDescriptionSummary = ({ token }: { token: string }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+      className="bg-brand-card rounded-3xl p-6 border border-brand-border/50 shadow-lg shadow-black/20">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="w-5 h-5 text-purple-600" />
-        <h3 className="text-sm font-bold text-gray-900">AI Job Description Summarizer</h3>
+        <h3 className="text-sm font-bold text-brand-text">AI Job Description Summarizer</h3>
       </div>
 
       {!summary ? (
@@ -381,8 +415,8 @@ const JobDescriptionSummary = ({ token }: { token: string }) => {
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
-            placeholder="Paste a long job description here and Gemini will extract the key info..."
-            className="w-full h-32 p-3 text-sm border border-gray-200 rounded-2xl resize-none focus:ring-2 focus:ring-purple-400 outline-none text-gray-700 placeholder-gray-400"
+            placeholder="Paste a long job description here and AI will extract the key info..."
+            className="w-full h-32 p-3 text-sm border border-brand-border rounded-2xl resize-none focus:ring-2 focus:ring-purple-400 outline-none text-brand-text-sec placeholder-gray-400"
           />
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
           <button
@@ -390,12 +424,12 @@ const JobDescriptionSummary = ({ token }: { token: string }) => {
             disabled={loading || !description.trim()}
             className="mt-3 w-full flex items-center justify-center gap-2 py-3 bg-purple-600 text-white rounded-2xl font-bold text-sm hover:bg-purple-700 transition-all disabled:opacity-50"
           >
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Summarizing...</> : <><Sparkles className="w-4 h-4" /> Summarize with Gemini</>}
+            {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Summarizing...</> : <><Sparkles className="w-4 h-4" /> Summarize with AI</>}
           </button>
         </>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-gray-700 leading-relaxed">{summary.summary}</p>
+          <p className="text-sm text-brand-text-sec leading-relaxed">{summary.summary}</p>
 
           {/* Quick tags */}
           <div className="flex flex-wrap gap-2">
@@ -414,7 +448,7 @@ const JobDescriptionSummary = ({ token }: { token: string }) => {
           {/* Key skills */}
           {summary.keySkills?.length > 0 && (
             <div>
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Required Skills</p>
+              <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-widest mb-2">Required Skills</p>
               <div className="flex flex-wrap gap-1.5">
                 {summary.keySkills.map((s: string, i: number) => (
                   <span key={i} className="px-2 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-lg border border-purple-100">{s}</span>
@@ -426,10 +460,10 @@ const JobDescriptionSummary = ({ token }: { token: string }) => {
           {/* Bullets */}
           {summary.bullets?.length > 0 && (
             <div>
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Key Points</p>
+              <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-widest mb-2">Key Points</p>
               <ul className="space-y-1.5">
                 {summary.bullets.map((b: string, i: number) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
+                  <li key={i} className="flex items-start gap-2 text-xs text-brand-text-sec">
                     <ChevronRight className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
                     {b}
                   </li>
@@ -439,7 +473,7 @@ const JobDescriptionSummary = ({ token }: { token: string }) => {
           )}
 
           <button onClick={() => { setSummary(null); setDescription(''); }}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+            className="text-xs text-brand-text-muted hover:text-brand-text-sec transition-colors">
             ← Summarize another
           </button>
         </div>
@@ -485,7 +519,7 @@ const JobCard = ({
 
   useEffect(() => {
     if (!token || !job.description || !isExternal) return;
-    // Lazily fetch Gemini insight for external jobs
+    // Lazily fetch AI insight for external jobs
     fetch('/api/jobs/insight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -497,22 +531,22 @@ const JobCard = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all group flex flex-col"
+      className="bg-brand-card rounded-2xl border border-brand-border/50 p-6 shadow-lg shadow-black/20 hover:shadow-glow hover:-translate-y-1 hover:border-brand-accent/50 transition-all duration-300 group flex flex-col"
     >
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1 min-w-0 pr-3">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h3 className="text-base font-bold text-gray-900 group-hover:text-indigo-600 transition-colors leading-tight">
+            <h3 className="text-base font-bold text-brand-text group-hover:text-brand-accent transition-colors leading-tight">
               {job.title}
             </h3>
             <SourceBadge source={job.source} />
           </div>
-          <p className="text-gray-600 font-medium text-sm">{job.company}</p>
+          <p className="text-brand-text-sec font-medium text-sm">{job.company}</p>
         </div>
         {job.matchScore !== undefined && (
           <div className="flex flex-col items-end shrink-0">
             <div className={`px-3 py-1 rounded-full text-sm font-bold ${
-              isHighMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-50 text-indigo-700'
+              isHighMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-brand-accent/10 text-brand-accent'
             }`}>
               {job.matchScore}%
             </div>
@@ -522,16 +556,16 @@ const JobCard = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500"><MapPin className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{job.location}</span></div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500"><DollarSign className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{job.salary_range}</span></div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500"><Clock className="w-3.5 h-3.5 shrink-0" />{job.job_type}</div>
+        <div className="flex items-center gap-1.5 text-xs text-brand-text-muted"><MapPin className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{job.location}</span></div>
+        <div className="flex items-center gap-1.5 text-xs text-brand-text-muted"><DollarSign className="w-3.5 h-3.5 shrink-0" /><span className="truncate">{job.salary_range}</span></div>
+        <div className="flex items-center gap-1.5 text-xs text-brand-text-muted"><Clock className="w-3.5 h-3.5 shrink-0" />{job.job_type}</div>
       </div>
 
       {job.skills && job.skills.length > 0 && (
         <div className="mb-3">
           <div className="flex flex-wrap gap-1.5">
             {job.skills.map(s => (
-              <span key={s.skill_id} className="px-2 py-1 bg-gray-50 text-gray-600 text-[11px] font-medium rounded-md border border-gray-100">{s.skill_name}</span>
+              <span key={s.skill_id} className="px-2 py-1 bg-brand-bg text-brand-text-sec text-[11px] font-medium rounded-md border border-brand-border/50">{s.skill_name}</span>
             ))}
           </div>
         </div>
@@ -544,17 +578,17 @@ const JobCard = ({
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
-        <span className="text-[11px] text-gray-400">{new Date(job.created_at).toLocaleDateString()}</span>
+      <div className="flex items-center justify-between pt-4 border-t border-brand-border/30 mt-auto">
+        <span className="text-[11px] text-brand-text-muted">{new Date(job.created_at).toLocaleDateString()}</span>
         {isExternal ? (
           <a href={(job as any).url || '#'} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-all">
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm bg-brand-accent text-white hover:bg-brand-accent-hover shadow-lg shadow-black/20 transition-all">
             Apply <ExternalLink className="w-3.5 h-3.5" />
           </a>
         ) : onApply && (
           <button disabled={applied} onClick={() => onApply(job.job_id as number)}
             className={`px-5 py-2 rounded-xl font-bold text-sm transition-all ${
-              applied ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+              applied ? 'bg-brand-bg-sec text-brand-text-muted cursor-not-allowed' : 'bg-brand-accent text-white hover:bg-brand-accent-hover shadow-lg shadow-black/20'
             }`}>
             {applied ? 'Applied ✓' : 'Apply Now'}
           </button>
@@ -567,37 +601,37 @@ const JobCard = ({
 // ── Navbar ────────────────────────────────────────────────────────────────────
 
 const Navbar = ({ user, onLogout }: { user: UserType | null, onLogout: () => void }) => (
-  <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+  <nav className="bg-brand-bg/80 backdrop-blur-md border-b border-brand-border sticky top-0 z-50">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between h-16">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-2 rounded-lg"><Briefcase className="text-white w-5 h-5" /></div>
-            <span className="text-xl font-bold text-gray-900">JobMatch AI</span>
+            <div className="bg-brand-accent p-2 rounded-lg"><Briefcase className="text-white w-5 h-5" /></div>
+            <span className="text-xl font-bold text-brand-text">JobMatch AI</span>
           </Link>
           {user?.role === 'candidate' && (
             <div className="hidden md:flex items-center gap-5">
-              <Link to="/dashboard" className="text-gray-600 hover:text-indigo-600 font-medium text-sm">Dashboard</Link>
-              <Link to="/jobs" className="text-gray-600 hover:text-indigo-600 font-medium text-sm">Find Jobs</Link>
+              <Link to="/dashboard" className="text-brand-text-sec hover:text-brand-accent font-medium text-sm">Dashboard</Link>
+              <Link to="/jobs" className="text-brand-text-sec hover:text-brand-accent font-medium text-sm">Find Jobs</Link>
             </div>
           )}
           {user?.role === 'admin' && (
-            <Link to="/admin" className="text-gray-600 hover:text-indigo-600 font-medium text-sm">Admin Panel</Link>
+            <Link to="/admin" className="text-brand-text-sec hover:text-brand-accent font-medium text-sm">Admin Panel</Link>
           )}
         </div>
         <div className="flex items-center gap-3">
           {user ? (
             <>
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                <p className="text-sm font-semibold text-brand-text">{user.name}</p>
+                <p className="text-xs text-brand-text-muted capitalize">{user.role}</p>
               </div>
-              <button onClick={onLogout} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><LogOut className="w-5 h-5" /></button>
+              <button onClick={onLogout} className="p-2 text-brand-text-muted hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"><LogOut className="w-5 h-5" /></button>
             </>
           ) : (
             <>
-              <Link to="/login" className="text-gray-600 hover:text-indigo-600 font-medium px-4 py-2 text-sm">Login</Link>
-              <Link to="/register" className="bg-indigo-600 text-white px-5 py-2 rounded-full font-medium hover:bg-indigo-700 transition-all shadow-sm text-sm">Sign Up</Link>
+              <Link to="/login" className="text-brand-text-sec hover:text-brand-accent font-medium px-4 py-2 text-sm">Login</Link>
+              <Link to="/register" className="bg-brand-accent text-white px-5 py-2 rounded-full font-medium hover:bg-brand-accent-hover transition-all shadow-lg shadow-black/20 text-sm">Sign Up</Link>
             </>
           )}
         </div>
@@ -626,28 +660,28 @@ const LoginPage = ({ onLogin }: { onLogin: (data: any) => void }) => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-gray-50">
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-brand-bg">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-gray-100">
+        className="bg-brand-card p-8 rounded-3xl shadow-xl w-full max-w-md border border-brand-border/50">
         <div className="text-center mb-8">
-          <div className="bg-indigo-600 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200"><Briefcase className="text-white w-6 h-6" /></div>
-          <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="text-gray-500 mt-1 text-sm">Sign in to your account</p>
+          <div className="bg-brand-accent w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-brand-accent/30"><Briefcase className="text-white w-6 h-6" /></div>
+          <h2 className="text-2xl font-bold text-brand-text">Welcome Back</h2>
+          <p className="text-brand-text-muted mt-1 text-sm">Sign in to your account</p>
         </div>
         {error && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium mb-5">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" required />
+            <label className="block text-sm font-bold text-brand-text-sec mb-2">Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-brand-bg border border-brand-border focus:ring-2 focus:ring-brand-accent outline-none text-sm text-brand-text" required />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none" required />
+            <label className="block text-sm font-bold text-brand-text-sec mb-2">Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-brand-bg border border-brand-border focus:ring-2 focus:ring-brand-accent outline-none text-brand-text" required />
           </div>
-          <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Sign In</button>
+          <button className="w-full bg-brand-accent text-white py-4 rounded-xl font-bold hover:bg-brand-accent-hover transition-all shadow-lg shadow-brand-accent/20">Sign In</button>
         </form>
-        <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-          <p className="text-gray-500 text-sm">No account? <Link to="/register" className="text-indigo-600 font-bold hover:underline">Create one</Link></p>
+        <div className="mt-6 pt-6 border-t border-brand-border/50 text-center">
+          <p className="text-brand-text-muted text-sm">No account? <Link to="/register" className="text-brand-accent font-bold hover:underline">Create one</Link></p>
         </div>
       </motion.div>
     </div>
@@ -674,24 +708,24 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-gray-50">
+    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-brand-bg">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-gray-100">
+        className="bg-brand-card p-8 rounded-3xl shadow-xl w-full max-w-md border border-brand-border/50">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-          <p className="text-gray-500 mt-1 text-sm">Join our AI-powered job network</p>
+          <h2 className="text-2xl font-bold text-brand-text">Create Account</h2>
+          <p className="text-brand-text-muted mt-1 text-sm">Join our AI-powered job network</p>
         </div>
         {error && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm mb-5">{error}</div>}
         {success && <div className="bg-emerald-50 text-emerald-600 p-3 rounded-xl text-sm mb-5">Account created! Redirecting...</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           {[{ key: 'name', label: 'Full Name', type: 'text' }, { key: 'email', label: 'Email', type: 'email' }, { key: 'password', label: 'Password', type: 'password' }].map(f => (
             <div key={f.key}>
-              <label className="block text-sm font-bold text-gray-700 mb-1">{f.label}</label>
+              <label className="block text-sm font-bold text-brand-text-sec mb-1">{f.label}</label>
               <input type={f.type} value={(form as any)[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" required />
+                className="w-full px-4 py-3 rounded-xl bg-brand-bg border border-brand-border focus:ring-2 focus:ring-brand-accent outline-none text-sm text-brand-text" required />
             </div>
           ))}
-          <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all mt-2">Register</button>
+          <button className="w-full bg-brand-accent text-white py-4 rounded-xl font-bold hover:bg-brand-accent-hover transition-all mt-2">Register</button>
         </form>
       </motion.div>
     </div>
@@ -737,41 +771,41 @@ const CandidateDashboard = ({ token }: { token: string }) => {
         <div className="lg:col-span-1 space-y-5">
           {/* Profile card */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
-            className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            className="bg-brand-card rounded-3xl p-6 shadow-lg shadow-black/20 border border-brand-border/50">
             <div className="flex items-center gap-4 mb-5">
-              <div className="w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 font-bold text-xl">
+              <div className="w-14 h-14 bg-brand-accent/20 rounded-2xl flex items-center justify-center text-brand-accent font-bold text-xl">
                 {profile?.name.charAt(0)}
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900">{profile?.name}</h2>
-                <p className="text-gray-500 text-xs">{profile?.email}</p>
+                <h2 className="text-base font-bold text-brand-text">{profile?.name}</h2>
+                <p className="text-brand-text-muted text-xs">{profile?.email}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
-              {profile?.skills?.length === 0 && <p className="text-sm text-gray-400 italic">No skills added yet.</p>}
+              {profile?.skills?.length === 0 && <p className="text-sm text-brand-text-muted italic">No skills added yet.</p>}
               {profile?.skills?.map(s => (
-                <span key={s.skill_id} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-100">
+                <span key={s.skill_id} className="px-2.5 py-1 bg-brand-accent/10 text-brand-accent text-xs font-bold rounded-lg border border-brand-accent/20">
                   {s.skill_name}
                 </span>
               ))}
             </div>
-            <Link to="/profile" className="flex items-center justify-center gap-2 w-full py-2.5 bg-gray-50 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-100 transition-colors">
+            <Link to="/profile" className="flex items-center justify-center gap-2 w-full py-2.5 bg-brand-bg text-brand-text-sec rounded-xl font-bold text-sm hover:bg-brand-bg-sec transition-colors">
               <Settings className="w-4 h-4" /> Edit Profile
             </Link>
           </motion.div>
 
           {/* Source stats */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 }}
-            className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Match Sources</h3>
+            className="bg-brand-card rounded-3xl p-5 shadow-lg shadow-black/20 border border-brand-border/50">
+            <h3 className="text-sm font-bold text-brand-text mb-4">Match Sources</h3>
             <div className="space-y-2.5">
               {[
-                { label: 'JobMatch Portal', count: localCount, cls: 'bg-indigo-100 text-indigo-700' },
+                { label: 'JobMatch Portal', count: localCount, cls: 'bg-brand-accent/20 text-brand-accent' },
                 { label: 'Indeed', count: indeedCount, cls: 'bg-blue-100 text-blue-700' },
                 { label: 'Dice', count: diceCount, cls: 'bg-orange-100 text-orange-700' },
               ].map(({ label, count, cls }) => (
                 <div key={label} className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">{label}</span>
+                  <span className="text-sm text-brand-text-sec">{label}</span>
                   <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${cls}`}>{count} jobs</span>
                 </div>
               ))}
@@ -811,19 +845,19 @@ const CandidateDashboard = ({ token }: { token: string }) => {
 
           {/* Applications */}
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}
-            className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Applications</h3>
+            className="bg-brand-card rounded-3xl p-5 shadow-lg shadow-black/20 border border-brand-border/50">
+            <h3 className="text-sm font-bold text-brand-text mb-4">Applications</h3>
             <div className="space-y-3">
               {applications.map(app => (
-                <div key={app.application_id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                <div key={app.application_id} className="flex justify-between items-center p-3 bg-brand-bg rounded-xl">
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{app.title}</p>
-                    <p className="text-xs text-gray-500">{app.company}</p>
+                    <p className="text-sm font-bold text-brand-text">{app.title}</p>
+                    <p className="text-xs text-brand-text-muted">{app.company}</p>
                   </div>
                   <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${app.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{app.status}</span>
                 </div>
               ))}
-              {applications.length === 0 && <p className="text-sm text-gray-400 text-center py-2">No applications yet.</p>}
+              {applications.length === 0 && <p className="text-sm text-brand-text-muted text-center py-2">No applications yet.</p>}
             </div>
           </motion.div>
         </div>
@@ -831,18 +865,18 @@ const CandidateDashboard = ({ token }: { token: string }) => {
         {/* Right: Recommendations */}
         <div className="lg:col-span-2 space-y-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <TrendingUp className="text-indigo-600 w-5 h-5" /> AI Recommendations
+            <h2 className="text-xl font-bold text-brand-text flex items-center gap-2">
+              <TrendingUp className="text-brand-accent w-5 h-5" /> AI Recommendations
               {recsLoading && <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />}
             </h2>
-            <Link to="/jobs" className="text-indigo-600 font-bold text-sm hover:underline">View All →</Link>
+            <Link to="/jobs" className="text-brand-accent font-bold text-sm hover:underline">View All →</Link>
           </div>
 
           {recsLoading && recommendations.length === 0 && (
-            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3">
+            <div className="bg-brand-accent/10 border border-brand-accent/20 rounded-2xl p-4 flex items-center gap-3">
               <Loader2 className="w-5 h-5 text-indigo-500 animate-spin shrink-0" />
               <div>
-                <p className="text-sm font-bold text-indigo-700">Searching Indeed, Dice & generating AI matches...</p>
+                <p className="text-sm font-bold text-brand-accent">Searching Indeed, Dice & generating AI matches...</p>
                 <p className="text-xs text-indigo-500 mt-0.5">This may take a few seconds</p>
               </div>
             </div>
@@ -866,11 +900,11 @@ const CandidateDashboard = ({ token }: { token: string }) => {
               ))}
             </AnimatePresence>
             {!recsLoading && recommendations.length === 0 && (
-              <div className="col-span-full bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+              <div className="col-span-full bg-brand-card rounded-3xl p-12 text-center border border-dashed border-brand-border">
                 <Sparkles className="text-gray-300 w-10 h-10 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-gray-900">No matches yet</h3>
-                <p className="text-gray-500 mt-2 text-sm">Add skills to get AI-powered recommendations from our portal, Indeed, and Dice.</p>
-                <Link to="/profile" className="inline-block mt-5 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all text-sm">Update Skills</Link>
+                <h3 className="text-lg font-bold text-brand-text">No matches yet</h3>
+                <p className="text-brand-text-muted mt-2 text-sm">Add skills to get AI-powered recommendations from our portal, Indeed, and Dice.</p>
+                <Link to="/profile" className="inline-block mt-5 px-6 py-3 bg-brand-accent text-white rounded-xl font-bold hover:bg-brand-accent-hover transition-all text-sm">Update Skills</Link>
               </div>
             )}
           </div>
@@ -920,19 +954,19 @@ const JobListings = ({ token }: { token: string }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Explore Opportunities</h2>
+      <h2 className="text-2xl font-bold text-brand-text mb-6">Explore Opportunities</h2>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-2xl w-fit mb-6">
+      <div className="flex items-center gap-1 p-1 bg-brand-bg-sec rounded-2xl w-fit mb-6">
         {[
           { key: 'local', label: 'Portal', count: filteredLocal.length },
           { key: 'indeed', label: 'Indeed', count: externalJobs.indeed.length },
           { key: 'dice', label: 'Dice', count: externalJobs.dice.length },
         ].map(({ key, label, count }) => (
           <button key={key} onClick={() => setTab(key as any)}
-            className={`px-5 py-2 rounded-xl font-bold text-sm transition-all ${tab === key ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`px-5 py-2 rounded-xl font-bold text-sm transition-all ${tab === key ? 'bg-brand-card text-brand-accent shadow-lg shadow-black/20' : 'text-brand-text-muted hover:text-brand-text-sec'}`}>
             {label}
-            {count > 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">{count}</span>}
+            {count > 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-brand-accent/20 text-brand-accent rounded-full text-[10px] font-black">{count}</span>}
           </button>
         ))}
       </div>
@@ -941,21 +975,21 @@ const JobListings = ({ token }: { token: string }) => {
       <div className="flex flex-wrap gap-3 mb-8">
         {tab !== 'local' && (
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
             <input type="text" placeholder="Job title or skill..."
-              className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-52"
+              className="pl-10 pr-4 py-2.5 bg-brand-card border border-brand-border rounded-xl text-sm focus:ring-2 focus:ring-brand-accent outline-none w-52"
               value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && searchExternal()} />
           </div>
         )}
         <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-text-muted" />
           <input type="text" placeholder="Location..."
-            className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-40"
+            className="pl-10 pr-4 py-2.5 bg-brand-card border border-brand-border rounded-xl text-sm focus:ring-2 focus:ring-brand-accent outline-none w-40"
             value={filter.location} onChange={e => setFilter({ ...filter, location: e.target.value })} />
         </div>
         {tab === 'local' && (
-          <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          <select className="px-4 py-2.5 bg-brand-card border border-brand-border rounded-xl text-sm focus:ring-2 focus:ring-brand-accent outline-none"
             value={filter.type} onChange={e => setFilter({ ...filter, type: e.target.value })}>
             <option value="">All Types</option>
             <option>Full-time</option><option>Remote</option><option>Contract</option>
@@ -963,7 +997,7 @@ const JobListings = ({ token }: { token: string }) => {
         )}
         {tab !== 'local' && (
           <button onClick={searchExternal} disabled={externalLoading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all disabled:opacity-60">
+            className="flex items-center gap-2 px-5 py-2.5 bg-brand-accent text-white rounded-xl font-bold text-sm hover:bg-brand-accent-hover transition-all disabled:opacity-60">
             {externalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             {externalLoading ? 'Searching...' : 'Search'}
           </button>
@@ -974,14 +1008,14 @@ const JobListings = ({ token }: { token: string }) => {
       {(loading && tab === 'local') || externalLoading ? (
         <div className="flex flex-col items-center py-20 gap-3">
           <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-          <p className="text-gray-500 text-sm">{tab !== 'local' ? 'Fetching live jobs...' : 'Loading...'}</p>
+          <p className="text-brand-text-muted text-sm">{tab !== 'local' ? 'Fetching live jobs...' : 'Loading...'}</p>
         </div>
       ) : tab !== 'local' && !hasSearched ? (
         <div className="text-center py-20">
           <Globe className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-gray-900 mb-2">Search {tab === 'indeed' ? 'Indeed' : 'Dice'} Jobs</h3>
-          <p className="text-gray-500 text-sm mb-6">Enter a job title and click Search to find live listings.</p>
-          <button onClick={searchExternal} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 text-sm">Search Now</button>
+          <h3 className="text-lg font-bold text-brand-text mb-2">Search {tab === 'indeed' ? 'Indeed' : 'Dice'} Jobs</h3>
+          <p className="text-brand-text-muted text-sm mb-6">Enter a job title and click Search to find live listings.</p>
+          <button onClick={searchExternal} className="px-6 py-3 bg-brand-accent text-white rounded-xl font-bold hover:bg-brand-accent-hover text-sm">Search Now</button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -991,7 +1025,7 @@ const JobListings = ({ token }: { token: string }) => {
             </div>
           ))}
           {activeJobs.length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-400 text-sm">No results found. Try a different search.</div>
+            <div className="col-span-full text-center py-12 text-brand-text-muted text-sm">No results found. Try a different search.</div>
           )}
         </div>
       )}
@@ -1032,26 +1066,26 @@ const AdminDashboard = ({ token }: { token: string }) => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Admin Dashboard</h2>
-          <p className="text-gray-500 text-sm mt-1">Manage job listings</p>
+          <h2 className="text-2xl font-bold text-brand-text">Admin Dashboard</h2>
+          <p className="text-brand-text-muted text-sm mt-1">Manage job listings</p>
         </div>
         <button onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all text-sm">
+          className="flex items-center gap-2 bg-brand-accent text-white px-5 py-3 rounded-xl font-bold hover:bg-brand-accent-hover transition-all text-sm">
           <PlusCircle className="w-4 h-4" /> Post New Job
         </button>
       </div>
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-brand-card rounded-3xl shadow-lg shadow-black/20 border border-brand-border/50 overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>{['Job Title', 'Company', 'Type', 'Skills', 'Actions'].map(h => <th key={h} className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>)}</tr>
+          <thead className="bg-brand-bg border-b border-brand-border/50">
+            <tr>{['Job Title', 'Company', 'Type', 'Skills', 'Actions'].map(h => <th key={h} className="px-6 py-4 text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">{h}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {jobs.map(job => (
-              <tr key={job.job_id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-bold text-gray-900 text-sm">{job.title}</td>
-                <td className="px-6 py-4 text-gray-600 text-sm">{job.company}</td>
-                <td className="px-6 py-4"><span className="px-2 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold rounded uppercase">{job.job_type}</span></td>
-                <td className="px-6 py-4"><div className="flex flex-wrap gap-1">{job.skills.map(s => <span key={s.skill_id} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded">{s.skill_name}</span>)}</div></td>
+              <tr key={job.job_id} className="hover:bg-brand-bg">
+                <td className="px-6 py-4 font-bold text-brand-text text-sm">{job.title}</td>
+                <td className="px-6 py-4 text-brand-text-sec text-sm">{job.company}</td>
+                <td className="px-6 py-4"><span className="px-2 py-1 bg-brand-bg-sec text-brand-text-sec text-[10px] font-bold rounded uppercase">{job.job_type}</span></td>
+                <td className="px-6 py-4"><div className="flex flex-wrap gap-1">{job.skills.map(s => <span key={s.skill_id} className="px-1.5 py-0.5 bg-brand-accent/10 text-brand-accent text-[10px] font-bold rounded">{s.skill_name}</span>)}</div></td>
                 <td className="px-6 py-4 text-right"><button onClick={() => handleDelete(job.job_id as number)} className="text-red-500 hover:text-red-700 font-bold text-sm">Delete</button></td>
               </tr>
             ))}
@@ -1062,30 +1096,30 @@ const AdminDashboard = ({ token }: { token: string }) => {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            className="bg-brand-card rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold mb-6">Create New Job</h3>
             <form onSubmit={handleCreate} className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="block text-sm font-bold text-gray-700 mb-1">Job Title</label>
-                <input required type="text" className="w-full p-3 rounded-xl border border-gray-200 text-sm" value={newJob.title} onChange={e => setNewJob({ ...newJob, title: e.target.value })} />
+                <label className="block text-sm font-bold text-brand-text-sec mb-1">Job Title</label>
+                <input required type="text" className="w-full p-3 rounded-xl border border-brand-border text-sm" value={newJob.title} onChange={e => setNewJob({ ...newJob, title: e.target.value })} />
               </div>
               {[['company', 'Company'], ['location', 'Location'], ['salary_range', 'Salary Range']].map(([k, l]) => (
                 <div key={k}>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">{l}</label>
-                  <input required type="text" className="w-full p-3 rounded-xl border border-gray-200 text-sm" value={(newJob as any)[k]} onChange={e => setNewJob({ ...newJob, [k]: e.target.value })} />
+                  <label className="block text-sm font-bold text-brand-text-sec mb-1">{l}</label>
+                  <input required type="text" className="w-full p-3 rounded-xl border border-brand-border text-sm" value={(newJob as any)[k]} onChange={e => setNewJob({ ...newJob, [k]: e.target.value })} />
                 </div>
               ))}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Type</label>
-                <select className="w-full p-3 rounded-xl border border-gray-200 text-sm" value={newJob.job_type} onChange={e => setNewJob({ ...newJob, job_type: e.target.value })}>
+                <label className="block text-sm font-bold text-brand-text-sec mb-1">Type</label>
+                <select className="w-full p-3 rounded-xl border border-brand-border text-sm" value={newJob.job_type} onChange={e => setNewJob({ ...newJob, job_type: e.target.value })}>
                   <option>Full-time</option><option>Remote</option><option>Contract</option>
                 </select>
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-bold text-gray-700 mb-1">Required Skills</label>
-                <div className="flex flex-wrap gap-2 p-3 border border-gray-200 rounded-xl max-h-28 overflow-y-auto">
+                <label className="block text-sm font-bold text-brand-text-sec mb-1">Required Skills</label>
+                <div className="flex flex-wrap gap-2 p-3 border border-brand-border rounded-xl max-h-28 overflow-y-auto">
                   {skills.map(s => (
-                    <label key={s.skill_id} className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg cursor-pointer hover:bg-indigo-50">
+                    <label key={s.skill_id} className="flex items-center gap-2 bg-brand-bg px-3 py-1 rounded-lg cursor-pointer hover:bg-brand-accent/10">
                       <input type="checkbox" checked={newJob.skills.includes(s.skill_id)}
                         onChange={e => setNewJob({ ...newJob, skills: e.target.checked ? [...newJob.skills, s.skill_id] : newJob.skills.filter(id => id !== s.skill_id) })} />
                       <span className="text-sm">{s.skill_name}</span>
@@ -1094,8 +1128,8 @@ const AdminDashboard = ({ token }: { token: string }) => {
                 </div>
               </div>
               <div className="col-span-2 flex gap-3 mt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold text-sm">Cancel</button>
-                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm">Create Job</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 bg-brand-bg-sec text-brand-text-sec rounded-xl font-bold text-sm">Cancel</button>
+                <button type="submit" className="flex-1 py-3 bg-brand-accent text-white rounded-xl font-bold text-sm">Create Job</button>
               </div>
             </form>
           </motion.div>
@@ -1150,12 +1184,12 @@ const ProfilePage = ({ token }: { token: string }) => {
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+        className="bg-brand-card rounded-3xl p-8 shadow-lg shadow-black/20 border border-brand-border/50">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">Edit Profile</h2>
+          <h2 className="text-2xl font-bold text-brand-text">Edit Profile</h2>
           <button
             onClick={() => setShowResumeUpload(!showResumeUpload)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-accent/10 text-brand-accent rounded-xl font-bold text-sm hover:bg-brand-accent/20 transition-colors"
           >
             <Upload className="w-4 h-4" />
             {showResumeUpload ? 'Hide Resume Upload' : 'Upload Resume'}
@@ -1177,18 +1211,18 @@ const ProfilePage = ({ token }: { token: string }) => {
 
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
-            <input type="text" className="w-full p-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+            <label className="block text-sm font-bold text-brand-text-sec mb-2">Full Name</label>
+            <input type="text" className="w-full p-4 rounded-2xl bg-brand-bg border border-brand-border focus:ring-2 focus:ring-brand-accent outline-none text-sm text-brand-text"
               value={profile?.name} onChange={e => setProfile({ ...profile!, name: e.target.value })} />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-4">Skills & Proficiency</label>
+            <label className="block text-sm font-bold text-brand-text-sec mb-4">Skills & Proficiency</label>
             <div className="grid grid-cols-1 gap-3">
               {allSkills.map(skill => {
                 const us = profile?.skills?.find(s => s.skill_id === skill.skill_id);
                 return (
-                  <div key={skill.skill_id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <span className="font-bold text-gray-700 text-sm">{skill.skill_name}</span>
+                  <div key={skill.skill_id} className="flex items-center justify-between p-4 bg-brand-bg rounded-2xl border border-brand-border/50">
+                    <span className="font-bold text-brand-text-sec text-sm">{skill.skill_name}</span>
                     <div className="flex gap-2">
                       {['Beginner', 'Intermediate', 'Expert'].map(level => (
                         <button key={level} onClick={() => {
@@ -1197,7 +1231,7 @@ const ProfilePage = ({ token }: { token: string }) => {
                           if (idx > -1) newSkills[idx] = { ...newSkills[idx], proficiency_level: level as any };
                           else newSkills.push({ ...skill, proficiency_level: level as any });
                           setProfile({ ...profile!, skills: newSkills });
-                        }} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${us?.proficiency_level === level ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-100'}`}>
+                        }} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${us?.proficiency_level === level ? 'bg-brand-accent text-white' : 'bg-brand-card text-brand-text-muted hover:bg-brand-bg-sec'}`}>
                           {level}
                         </button>
                       ))}
@@ -1209,8 +1243,8 @@ const ProfilePage = ({ token }: { token: string }) => {
             </div>
           </div>
           <div className="pt-4 flex gap-4">
-            <button onClick={() => navigate('/dashboard')} className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 text-sm disabled:opacity-70">
+            <button onClick={() => navigate('/dashboard')} className="flex-1 py-4 bg-brand-bg-sec text-brand-text-sec rounded-2xl font-bold text-sm">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 py-4 bg-brand-accent text-white rounded-2xl font-bold shadow-lg shadow-brand-accent/20 text-sm disabled:opacity-70">
               {saving ? 'Saving...' : 'Save Profile'}
             </button>
           </div>
@@ -1232,37 +1266,37 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
+      <div className="min-h-screen bg-brand-bg font-sans text-brand-text">
         <Navbar user={auth?.user || null} onLogout={handleLogout} />
         <main>
           <Routes>
             <Route path="/" element={
               <div className="max-w-7xl mx-auto px-4 py-20 text-center">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto">
-                  <span className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-sm font-bold mb-6 inline-block">Powered by Gemini AI · Indeed · Dice</span>
-                  <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tight leading-tight mb-8">
-                    Find your <span className="text-indigo-600">perfect</span> career match.
+                  <span className="px-4 py-2 bg-brand-accent/10 text-brand-accent rounded-full text-sm font-bold mb-6 inline-block">Upload Resume · Extract Skills · Get Matched</span>
+                  <h1 className="text-5xl md:text-7xl font-black text-brand-text tracking-tight leading-tight mb-8">
+                    Find your <span className="text-brand-accent">perfect</span> career match.
                   </h1>
-                  <p className="text-xl text-gray-500 mb-12 leading-relaxed">
-                    Gemini AI analyzes your skills and surfaces the best jobs from our portal, Indeed, and Dice — all in one dashboard.
+                  <p className="text-xl text-brand-text-muted mb-12 leading-relaxed">
+                    Our AI analyzes your resume, scores your profile, and surfaces the best job recommendations — all in one dashboard.
                   </p>
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <Link to="/register" className="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Get Started Free</Link>
-                    <Link to="/jobs" className="w-full sm:w-auto px-8 py-4 bg-white text-gray-700 border border-gray-200 rounded-2xl font-bold text-lg hover:bg-gray-50 transition-all">Browse Jobs</Link>
+                    <Link to="/register" className="w-full sm:w-auto px-8 py-4 bg-brand-accent text-white rounded-2xl font-bold text-lg hover:bg-brand-accent-hover transition-all shadow-xl shadow-brand-accent/20">Get Started Free</Link>
+                    <Link to="/jobs" className="w-full sm:w-auto px-8 py-4 bg-brand-card text-brand-text-sec border border-brand-border rounded-2xl font-bold text-lg hover:bg-brand-bg transition-all">Browse Jobs</Link>
                   </div>
                 </motion.div>
                 <div className="mt-20 grid grid-cols-1 md:grid-cols-4 gap-6">
                   {[
-                    { icon: <Sparkles />, title: "Gemini AI", desc: "Smart skill matching and personalized resume tips powered by Gemini." },
-                    { icon: <Globe />, title: "Indeed Jobs", desc: "Live job listings fetched directly from Indeed's database." },
-                    { icon: <Zap />, title: "Dice Tech Jobs", desc: "Specialized tech roles from Dice's professional network." },
-                    { icon: <CheckCircle />, title: "One Dashboard", desc: "All sources unified with match scores in one place." },
+                    { icon: <Sparkles />, title: "AI Resume Analysis", desc: "Smart skill extraction and personalized resume tips." },
+                    { icon: <CheckCircle />, title: "Resume Scoring", desc: "Get an instant AI score and actionable feedback to improve your resume." },
+                    { icon: <Zap />, title: "Smart Job Matching", desc: "Intelligent job recommendations based on your exact skill profile." },
+                    { icon: <Globe />, title: "Multi-Source Job Discovery", desc: "Explore opportunities aggregated from top job platforms." },
                   ].map((f, i) => (
                     <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.1 }}
-                      className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                      <div className="bg-indigo-50 w-10 h-10 rounded-2xl flex items-center justify-center text-indigo-600 mb-4">{f.icon}</div>
+                      className="bg-brand-card p-6 rounded-3xl border border-brand-border/50 shadow-lg shadow-black/20">
+                      <div className="bg-brand-accent/10 w-10 h-10 rounded-2xl flex items-center justify-center text-brand-accent mb-4">{f.icon}</div>
                       <h3 className="text-base font-bold mb-2">{f.title}</h3>
-                      <p className="text-gray-500 text-sm leading-relaxed">{f.desc}</p>
+                      <p className="text-brand-text-muted text-sm leading-relaxed">{f.desc}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -1276,13 +1310,13 @@ export default function App() {
             <Route path="/admin" element={auth?.user.role === 'admin' ? <AdminDashboard token={auth.token} /> : <Navigate to="/login" />} />
           </Routes>
         </main>
-        <footer className="bg-white border-t border-gray-100 py-10 mt-16">
+        <footer className="bg-brand-card border-t border-brand-border/50 py-10 mt-16">
           <div className="max-w-7xl mx-auto px-4 text-center">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <Briefcase className="text-indigo-600 w-5 h-5" />
-              <span className="text-lg font-bold text-gray-900">JobMatch AI</span>
+              <Briefcase className="text-brand-accent w-5 h-5" />
+              <span className="text-lg font-bold text-brand-text">JobMatch AI</span>
             </div>
-            <p className="text-gray-400 text-xs">© 2026 JobMatch AI · Powered by Gemini AI, Indeed & Dice</p>
+            <p className="text-brand-text-muted text-xs">© 2026 JobMatch AI · Powered by AI</p>
           </div>
         </footer>
       </div>
