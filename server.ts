@@ -80,18 +80,21 @@ async function callAI(prompt: string): Promise<string> {
   return data.choices?.[0]?.message?.content || "";
 }
 function extractJSON(text: string): any {
-  // Try to find JSON array or object in the response
-  const arrayMatch = text.match(/\[[\s\S]*\]/);
-  if (arrayMatch) {
-    try { return JSON.parse(arrayMatch[0]); } catch { /* continue */ }
-  }
-  const objMatch = text.match(/\{[\s\S]*\}/);
+  const clean = text.replace(/```json|```/g, "").trim();
+
+  try { return JSON.parse(clean); } catch { /* continue */ }
+
+  const objMatch = clean.match(/\{[\s\S]*\}/);
   if (objMatch) {
     try { return JSON.parse(objMatch[0]); } catch { /* continue */ }
   }
-  // Strip markdown code fences
-  const clean = text.replace(/```json|```/g, "").trim();
-  try { return JSON.parse(clean); } catch { return null; }
+
+  const arrayMatch = clean.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    try { return JSON.parse(arrayMatch[0]); } catch { /* continue */ }
+  }
+
+  return null;
 }
 
 // ── Multer (resume upload) ────────────────────────────────────────────────────
@@ -115,11 +118,28 @@ Extract ALL technical and soft skills mentioned. Include programming languages, 
 Resume text:
 ${resumeText.slice(0, 4000)}`;
 
+  console.log("Resume extraction debug: text length", resumeText.length);
+  console.log("Resume extraction debug: text preview", resumeText.slice(0, 1000));
+  console.log("Resume extraction debug: prompt", prompt);
+
   const raw = await callAI(prompt);
+  console.log("Resume extraction debug: raw AI response", raw);
+
   const parsed = extractJSON(raw);
+  console.log("Resume extraction debug: parsed JSON", parsed);
+
+  const skills =
+    Array.isArray(parsed?.skills) ? parsed.skills :
+    Array.isArray(parsed?.technicalSkills) ? parsed.technicalSkills :
+    Array.isArray(parsed?.technologies) ? parsed.technologies :
+    Array.isArray(parsed?.techStack) ? parsed.techStack :
+    [];
+
+  console.log("Resume extraction debug: final skills array", skills);
+
   return {
     name: parsed?.name || "",
-    skills: Array.isArray(parsed?.skills) ? parsed.skills : [],
+    skills,
     summary: parsed?.summary || "",
   };
 }
@@ -286,6 +306,49 @@ In exactly one sentence (max 20 words), explain why this is or isn't a good matc
   }
 }
 
+async function getRecommendationsForUser(userId: number, threshold: number = 30): Promise<any[]> {
+  const userSkillIds = new Set(
+    (db.prepare("SELECT skill_id FROM user_skills WHERE user_id = ?").all(userId) as any[]).map(s => s.skill_id)
+  );
+  const userSkillNames = (db.prepare(`
+    SELECT s.skill_name FROM skills s
+    JOIN user_skills us ON s.skill_id = us.skill_id WHERE us.user_id = ?
+  `).all(userId) as any[]).map(s => s.skill_name);
+
+  const localJobs = db.prepare("SELECT * FROM jobs").all() as any[];
+  const localRecs = localJobs.map(job => {
+    const jobSkillIds = (db.prepare("SELECT skill_id FROM job_skills WHERE job_id = ?").all(job.job_id) as any[]).map(s => s.skill_id);
+    if (!jobSkillIds.length) return null;
+    const ms = Math.round((jobSkillIds.filter((id: number) => userSkillIds.has(id)).length / jobSkillIds.length) * 100);
+    const skills = db.prepare(`
+      SELECT s.skill_id, s.skill_name FROM skills s
+      JOIN job_skills js ON s.skill_id = js.skill_id WHERE js.job_id = ?
+    `).all(job.job_id);
+    return { ...job, matchScore: ms, skills, source: "local" };
+  }).filter(Boolean).filter((j: any) => j.matchScore >= threshold);
+
+  let externalRecs: any[] = [];
+  if (userSkillNames.length > 0) {
+    try {
+      let externalJobs: any[] = [];
+
+      if (JSEARCH_API_KEY) {
+        externalJobs = await fetchJSearchJobs(userSkillNames.slice(0, 3).join(" "));
+      } else if (GROQ_API_KEY) {
+        externalJobs = await generateJobsWithAI(userSkillNames, 8);
+      }
+
+      externalRecs = externalJobs
+        .map(j => ({ ...j, matchScore: computeMatchScore(userSkillNames, j) }))
+        .filter(j => j.matchScore >= threshold);
+    } catch (err: any) {
+      console.error("External recs error:", err.message);
+    }
+  }
+
+  return [...localRecs, ...externalRecs].sort((a, b) => b.matchScore - a.matchScore);
+}
+
 // ── Express server ───────────────────────────────────────────────────────────
 
 async function startServer() {
@@ -415,53 +478,8 @@ async function startServer() {
   // ── Recommendations (local + Gemini AI + optional real jobs) ──
   app.get("/api/recommendations", authenticate, async (req: any, res) => {
     const threshold = parseInt(req.query.threshold as string) || 30;
-
-    // Get user skills
-    const userSkillIds = new Set(
-      (db.prepare("SELECT skill_id FROM user_skills WHERE user_id = ?").all(req.user.id) as any[]).map(s => s.skill_id)
-    );
-    const userSkillNames = (db.prepare(`
-      SELECT s.skill_name FROM skills s
-      JOIN user_skills us ON s.skill_id = us.skill_id WHERE us.user_id = ?
-    `).all(req.user.id) as any[]).map(s => s.skill_name);
-
-    // Local recommendations (rule-based)
-    const localJobs = db.prepare("SELECT * FROM jobs").all() as any[];
-    const localRecs = localJobs.map(job => {
-      const jobSkillIds = (db.prepare("SELECT skill_id FROM job_skills WHERE job_id = ?").all(job.job_id) as any[]).map(s => s.skill_id);
-      if (!jobSkillIds.length) return null;
-      const ms = Math.round((jobSkillIds.filter((id: number) => userSkillIds.has(id)).length / jobSkillIds.length) * 100);
-      const skills = db.prepare(`
-        SELECT s.skill_id, s.skill_name FROM skills s
-        JOIN job_skills js ON s.skill_id = js.skill_id WHERE js.job_id = ?
-      `).all(job.job_id);
-      return { ...job, matchScore: ms, skills, source: "local" };
-    }).filter(Boolean).filter((j: any) => j.matchScore >= threshold);
-
-    // External jobs
-    let externalRecs: any[] = [];
-    if (userSkillNames.length > 0) {
-      try {
-        let externalJobs: any[] = [];
-
-        if (JSEARCH_API_KEY) {
-          // Real jobs from JSearch
-          externalJobs = await fetchJSearchJobs(userSkillNames.slice(0, 3).join(" "));
-        } else if (GROQ_API_KEY) {
-          // Gemini-generated jobs tailored to user skills
-          externalJobs = await generateJobsWithAI(userSkillNames, 8);
-        }
-
-        externalRecs = externalJobs
-          .map(j => ({ ...j, matchScore: computeMatchScore(userSkillNames, j) }))
-          .filter(j => j.matchScore >= threshold);
-      } catch (err: any) {
-        console.error("External recs error:", err.message);
-      }
-    }
-
-    const all = [...localRecs, ...externalRecs].sort((a, b) => b.matchScore - a.matchScore);
-    res.json(all);
+    const recommendations = await getRecommendationsForUser(req.user.id, threshold);
+    res.json(recommendations);
   });
 
   // ── Gemini AI: Job insight for a specific job ──
@@ -557,9 +575,26 @@ Return ONLY a JSON array of 3 strings, no markdown:
         } catch { /* ignore duplicates */ }
       }
 
+      const savedSkills = [...matchedSkills, ...insertedSkills];
+      if (savedSkills.length > 0) {
+        const saveUserSkill = db.prepare(`
+          INSERT OR IGNORE INTO user_skills (user_id, skill_id, proficiency_level)
+          VALUES (?, ?, ?)
+        `);
+        db.transaction(() => {
+          savedSkills.forEach((skill: any) => {
+            saveUserSkill.run(req.user.id, skill.skill_id, "Intermediate");
+          });
+        })();
+      }
+
+      const recommendations = await getRecommendationsForUser(req.user.id, 30);
+
       res.json({
         extractedSkills: result.skills,
-        matchedSkills: [...matchedSkills, ...insertedSkills],
+        matchedSkills: savedSkills,
+        savedSkills,
+        recommendations,
         name: result.name,
         summary: result.summary,
       });

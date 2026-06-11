@@ -33,6 +33,7 @@ const ResumeUploadCard = ({ token, onSkillsExtracted }: { token: string, onSkill
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setResult(data);
+      onSkillsExtracted(data.savedSkills || data.matchedSkills || [], data.name);
     } catch (err: any) {
       setError(err.message);
     }
@@ -89,12 +90,37 @@ const ResumeUploadCard = ({ token, onSkillsExtracted }: { token: string, onSkill
               ))}
             </div>
           </div>
+          <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="text-xs font-bold text-emerald-700">Skills saved to your profile automatically</span>
+          </div>
+          {result.recommendations?.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-indigo-700">Recommended Jobs ({result.recommendations.length})</p>
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {result.recommendations.slice(0, 5).map((job: any) => (
+                  <div key={job.job_id} className="bg-white rounded-xl border border-indigo-100 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black text-gray-900">{job.title}</p>
+                        <p className="text-xs text-gray-500 font-medium">{job.company} • {job.location}</p>
+                      </div>
+                      <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-black shrink-0">
+                        {job.matchScore}% match
+                      </span>
+                    </div>
+                    {job.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{job.description}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex gap-2 pt-2">
             <button
               onClick={() => onSkillsExtracted(result.matchedSkills, result.name)}
               className="flex-1 py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all"
             >
-              Auto-fill Profile →
+              Refresh Profile Skills
             </button>
             <button onClick={() => setResult(null)} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
               <X className="w-4 h-4 text-gray-400" />
@@ -825,16 +851,18 @@ const CandidateDashboard = ({ token }: { token: string }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <AnimatePresence>
               {recommendations.map(job => (
-                <JobCard key={job.job_id} job={job} token={token}
-                  applied={job.source === 'local' && applications.some(a => a.job_id === job.job_id)}
-                  onApply={job.source === 'local' ? async (id) => {
-                    await fetch('/api/applications', {
-                      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                      body: JSON.stringify({ jobId: id })
-                    });
-                    setApplications(prev => [...prev, { job_id: id } as any]);
-                  } : undefined}
-                />
+                <div key={job.job_id} className="contents">
+                  <JobCard job={job} token={token}
+                    applied={job.source === 'local' && applications.some(a => a.job_id === job.job_id)}
+                    onApply={job.source === 'local' ? async (id) => {
+                      await fetch('/api/applications', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ jobId: id })
+                      });
+                      setApplications(prev => [...prev, { job_id: id } as any]);
+                    } : undefined}
+                  />
+                </div>
               ))}
             </AnimatePresence>
             {!recsLoading && recommendations.length === 0 && (
@@ -957,7 +985,11 @@ const JobListings = ({ token }: { token: string }) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {activeJobs.map(job => <JobCard key={job.job_id} job={job} />)}
+          {activeJobs.map(job => (
+            <div key={job.job_id} className="contents">
+              <JobCard job={job} />
+            </div>
+          ))}
           {activeJobs.length === 0 && (
             <div className="col-span-full text-center py-12 text-gray-400 text-sm">No results found. Try a different search.</div>
           )}
@@ -1100,7 +1132,6 @@ const ProfilePage = ({ token }: { token: string }) => {
   };
 
   const handleSkillsExtracted = (matchedSkills: any[], extractedName: string) => {
-    setShowResumeUpload(false);
     // Add all matched skills as Intermediate if not already present
     const currentSkillIds = new Set(profile?.skills?.map(s => s.skill_id) || []);
     const newSkills = matchedSkills.filter(s => !currentSkillIds.has(s.skill_id))
